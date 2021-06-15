@@ -4,7 +4,7 @@ from statistics import mean
 import itertools
 from statistics import StatisticsError
 
-api_key = '01ee7bed0803827d7b32cc0038af8e2e'
+api_key = '54a113ea71997f79e00deb08bc743b0d'
 
 
 def get_date_pairs(data):
@@ -25,7 +25,7 @@ def get_date_pairs(data):
     print(mean(returns_list), "mean(returns_list)")
     return mean(returns_list)
 
-def generate_vars_dataset(fall_day_length, gain_day_length, fall_percentage, min_fall_percentage):
+def generate_vars_dataset(fall_day_length, gain_day_length, fall_percentage, min_fall_percentage, min_gain_day_length=1):
     """
     [
         [[1,1],-1],
@@ -33,21 +33,21 @@ def generate_vars_dataset(fall_day_length, gain_day_length, fall_percentage, min
     ]
     """
     fall_gap = [i for i in range(1,fall_day_length)]
-    rise_gap = [i for i in range(1,gain_day_length)]
+    rise_gap = [i for i in range(min_gain_day_length,gain_day_length)]
 
     test = list(itertools.product(fall_gap, rise_gap))
     list_percentages = [i for i in range(fall_percentage,min_fall_percentage)]
     return list(itertools.product(test, list_percentages))
 
-def get_percent_change(first_number, second_number):
-    return ((second_number - first_number)/first_number) * 100
+def get_percent_change(old, new):
+    return ((new - old)/old) * 100
 
-def get_ticker_data(ticker):
+def get_ticker_data(ticker, fetch_new=False):
 
     with open('stock_data.json') as f:
         stock_json_file = json.load(f)
 
-    if ticker in stock_json_file:
+    if ticker in stock_json_file and not fetch_new:
         data = stock_json_file[ticker]
     else:
         print("FETCHINNGGG")

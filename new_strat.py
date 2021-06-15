@@ -25,10 +25,11 @@ for each ticker
 - then calculate gain in z days from fall end
 
 """
-columns = ['ticker', 'fall_window', 'gain_window', 'fall_percentage', 'occurrences','avg_buy_price','avg_gain_across_occs', 'total_return']
+columns = ['ticker', 'fall_window', 'gain_window', 'fall_percentage', 'occurrences','avg_buy_price','avg_gain_across_occs']
 
 fall_day_length = 30
-gain_day_length = 30
+gain_day_length = 100
+min_gain_day_length = 10
 fall_percentage = -40
 min_fall_percentage = -7
 
@@ -70,14 +71,13 @@ def get_gain_after_fall(ticker_data, combo,ticker):
 
     buy_sell['buys'] = buy_dates
     buy_sell['sells'] = sell_dates
-    print(ticker, "ticker")
-    print(buy_sell, "buy_sell")
+    # print(ticker, "ticker")
+    # print(buy_sell, "buy_sell")
 
     occurences = len(gain_per_occ)
     avg_return_per_occurence = mean(gain_per_occ) if len(gain_per_occ) else 0
-    total_return = occurences * avg_return_per_occurence
     avg_buy_price = mean(buy_prices) if len(buy_prices) else 0
-    return [fall_gap, gain_gap, min_fall_percentage, occurences,avg_buy_price, avg_return_per_occurence, total_return]
+    return [fall_gap, gain_gap, min_fall_percentage, occurences,avg_buy_price, avg_return_per_occurence]
 
 
 def get_df_given_combos(ticker, ticker_data, combos):
@@ -94,7 +94,7 @@ def get_df_given_combos(ticker, ticker_data, combos):
 
 
 def main_run(tickers, make_graph=False, get_max_info=True):
-    combo_set = generate_vars_dataset(fall_day_length, gain_day_length, fall_percentage, min_fall_percentage)
+    combo_set = generate_vars_dataset(fall_day_length, gain_day_length, fall_percentage, min_fall_percentage, min_gain_day_length)
     max_list = []
 
     for t in tickers:
@@ -102,10 +102,10 @@ def main_run(tickers, make_graph=False, get_max_info=True):
 
         combo_results_list = get_df_given_combos(t,ticker_data, combo_set)
         combo_results_df = pd.DataFrame(combo_results_list, columns=columns)
-        print(combo_results_df.sort_values('total_return'))
+        print(combo_results_df.sort_values('avg_gain_across_occs'))
 
         try:
-            max_row = combo_results_df[combo_results_df['total_return'] == combo_results_df['total_return'].max()].to_dict('records')[0]
+            max_row = combo_results_df[combo_results_df['avg_gain_across_occs'] == combo_results_df['avg_gain_across_occs'].max()].to_dict('records')[0]
             max_list.append(max_row)
         except Exception:
             pass
@@ -117,57 +117,75 @@ def main_run(tickers, make_graph=False, get_max_info=True):
 
             xs = combo_results_df['fall_percentage']
             ys = combo_results_df['fall_window']
-            zs = combo_results_df['total_return']
+            zs = combo_results_df['avg_gain_across_occs']
             ax.scatter(xs, ys, zs, c=zs, cmap="cool", marker='o')
             ax.set_xlabel('fall_percentage')
             ax.set_ylabel('fall_window')
-            ax.set_zlabel('total_return')
+            ax.set_zlabel('avg_gain_across_occs')
             ax.set_title(t)
-    if make_graph:
-        plt.show()
+
 
     if get_max_info:
         max_df = pd.DataFrame(max_list, columns=columns)
         print(max_df['fall_window'].mean(), 'fall_window')
         print(max_df['gain_window'].mean(), 'gain_window')
         print(max_df['fall_percentage'].mean(),'fall_percentage')
-        print(max_df['total_return'].mean(),'total_return')
+        print(max_df['avg_gain_across_occs'].mean(),'avg_gain_across_occs')
         print(max_df, "max_df")
 
+    if make_graph:
+        plt.show()
 
 
 def selected_combo_run(tickers, single_combo):
     concatonated = []
+    avg_list = []
     for idx, t in enumerate(tickers):
         print("Remaining tickers : ", len(tickers) - idx )
         ticker_data = get_ticker_data(t)
         concatonated = concatonated + get_df_given_combos(t,ticker_data, single_combo)
     combo_results_df = pd.DataFrame(concatonated, columns=columns)
-    print(combo_results_df.sort_values('total_return'))
-    print("Avg return : ", combo_results_df['total_return'].mean())
-    print("Avg buy price : ", combo_results_df['avg_buy_price'].mean())
-    print("Total occurrences : ", combo_results_df['occurrences'].sum())
 
+    avg_gain_across_occs =combo_results_df['avg_gain_across_occs'].mean()
+    avg_buy_price =combo_results_df['avg_buy_price'].mean()
+    occurrences = combo_results_df['occurrences'].sum()
+    print(combo_results_df.sort_values('avg_gain_across_occs'))
+    print("avg_gain_across_occs : ", avg_gain_across_occs)
+    print("Avg buy price : ", avg_buy_price)
+    print("Total occurrences : ", occurrences)
+    print([avg_gain_across_occs, avg_buy_price, occurrences, single_combo])
+    return [avg_gain_across_occs, avg_buy_price, occurrences, single_combo]
 def run():
-    # main_run(sub,make_graph=True)
-    selected_combo_run(['ADANIGREEN.XNSE'], [[[25,30],-7]])
+    # main_run(indian_stocks,make_graph=False)
+    avgs_for_all =[]
+    for c in combos:
+        list_for_combo = []
+        for t in indian_stocks:
+            temp = selected_combo_run([t], [c])
+            temp.append(t)
+            list_for_combo.append(temp)
+        given_combo_df = pd.DataFrame(list_for_combo, columns=['avg_gain_across_occs','avg_buy_price', 'occurrences', 'single_combo', 'ticker'])
+        avgs_for_all.append(
+        [given_combo_df['avg_gain_across_occs'].mean(),
+        given_combo_df['avg_buy_price'].mean(),
+        given_combo_df['occurrences'].mean(),
+        c])
+
+    # print(given_combo_df)
+    final_df = pd.DataFrame(avgs_for_all, columns=['avg_gain_across_occs','avg_buy_price','occurrences', 'single_combo'])
+    print(final_df.sort_values('avg_gain_across_occs'), "final_df")
 
 run()
 
 
 
 
-
-
-
-
-
 #INDIAN STOCKS
 #mean of max
-# 22.625 fall_window
-# 25.78125 gain_window
-# -8.15625 fall_percentage
-# 243.26691196538812 total_return
+# 14.1875 fall_window
+# 81.29166666666667 gain_window
+# -12.354166666666666 fall_percentage
+# 61.76219245309744 avg_gain_across_occs
 
 # Avg return :  145.7378891163793 ..... [[[15,30],-7]]
 # Avg return :  203.20283030698388 ..... [[[25,30],-7]] #observed through graphs
