@@ -4,7 +4,7 @@ from statistics import mean
 import itertools
 from statistics import StatisticsError
 
-api_key = '54a113ea71997f79e00deb08bc743b0d'
+api_key = '0fdf4ff2f37b96ef7e726c61a3829834'
 
 
 def get_date_pairs(data):
